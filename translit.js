@@ -21,7 +21,9 @@
     wagle: "वाग्ले", gyawali: "ज्ञवाली", baral: "बराल", bhatta: "भट्ट",
     shrestha: "श्रेष्ठ", bhatt: "भट्ट",
     // नाम र नामका भाग
-    hirandalal: "हिरन्दलाल", ram: "राम", shyam: "श्याम", hari: "हरि", krishna: "कृष्ण",
+    hirandalal: "हिरण्यलाल", hiranyalal: "हिरण्यलाल", hiranya: "हिरण्य",
+    khaganath: "खगनाथ", khagnath: "खगनाथ", padmapani: "पद्मपाणि", bhojraj: "भोजराज",
+    loknath: "लोकनाथ", premsagar: "प्रेमसागर", sagar: "सागर", ram: "राम", shyam: "श्याम", hari: "हरि", krishna: "कृष्ण",
     laxmi: "लक्ष्मी", lakshmi: "लक्ष्मी", sita: "सीता", gita: "गीता", geeta: "गीता",
     radha: "राधा", ganga: "गङ्गा", durga: "दुर्गा", parvati: "पार्वती", kamala: "कमला",
     devi: "देवी", maya: "माया", kumari: "कुमारी", kumar: "कुमार", prasad: "प्रसाद",

@@ -12,10 +12,15 @@
 //     spouses: [ { name: "श्रीमतीको नाम", children: [ ...व्यक्ति ] } ]
 //   }
 
+// सात दाजुभाइ, जेठा (खगनाथ) देखि कान्छा (प्रेमसागर) सम्म क्रमैले।
 const BROTHERS = [
+  { id: "khaganath", name: "खगनाथ", gender: "male" },
+  { id: "padmapani", name: "पद्मपाणि", gender: "male" },
+  { id: "bhojraj", name: "भोजराज", gender: "male" },
+  { id: "loknath", name: "लोकनाथ", gender: "male" },
   {
     id: "hirandalal",
-    name: "हिरन्दलाल पौड्याल",
+    name: "हिरण्यलाल",
     gender: "male",
     spouses: [
       {
@@ -36,10 +41,6 @@ const BROTHERS = [
       }
     ]
   },
-  { id: "brother-2", name: "", gender: "male" },
-  { id: "brother-3", name: "", gender: "male" },
-  { id: "brother-4", name: "", gender: "male" },
-  { id: "brother-5", name: "", gender: "male" },
-  { id: "brother-6", name: "", gender: "male" },
-  { id: "brother-7", name: "", gender: "male" }
+  { id: "keshav", name: "केशव", gender: "male" },
+  { id: "premsagar", name: "प्रेमसागर", gender: "male" }
 ];

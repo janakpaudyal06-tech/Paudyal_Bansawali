@@ -1,6 +1,7 @@
 (function () {
   const STORE_KEY = "paudyal-bansawali-v1";
   const EDIT_KEY = "paudyal-bansawali-edit";
+  const OLD_DEFAULT_NAMES = new Set(["हिरन्दलाल पौड्याल"]); // placeholder names from earlier versions
   const NUM = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
   const np = n => String(n).replace(/\d/g, d => NUM[d]);
 
@@ -15,12 +16,29 @@
 
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
+  // Saved data is matched to the brothers in data.js by id, so the tab list and
+  // order always follow data.js while what people filled in is kept.
   function load() {
+    let saved = [];
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE_KEY));
-      if (Array.isArray(saved) && saved.length) return saved;
+      const parsed = JSON.parse(localStorage.getItem(STORE_KEY));
+      if (Array.isArray(parsed)) saved = parsed;
     } catch (e) { /* storage unavailable or corrupt: fall back to defaults */ }
-    return clone(BROTHERS);
+    return mergeWithDefaults(saved);
+  }
+
+  function mergeWithDefaults(saved) {
+    const byId = new Map(saved.map(b => [b.id, b]));
+    const merged = BROTHERS.map(def => {
+      const b = byId.get(def.id);
+      if (!b) return clone(def);
+      byId.delete(def.id);
+      if (!b.name || OLD_DEFAULT_NAMES.has(b.name)) b.name = def.name;
+      return b;
+    });
+    // Keep anything filled in under a tab that no longer exists, rather than losing it.
+    byId.forEach(b => { if ((b.spouses || []).length) merged.push(b); });
+    return merged;
   }
 
   function readEditPref() {
@@ -365,7 +383,7 @@
       const m = text.match(/\[[\s\S]*\]/);
       const parsed = m && JSON.parse(m[0]);
       if (!Array.isArray(parsed) || !parsed.length) throw new Error("bad file");
-      data = parsed; save(); render();
+      data = mergeWithDefaults(parsed); save(); render();
     }).catch(() => alert("यो फाइल पढ्न सकिएन।")).finally(() => { e.target.value = ""; });
   });
 
