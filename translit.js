@@ -23,7 +23,7 @@
     // नाम र नामका भाग
     hirandalal: "हिरण्यलाल", hiranyalal: "हिरण्यलाल", hiranya: "हिरण्य",
     khaganath: "खगनाथ", khagnath: "खगनाथ", padmapani: "पद्मपाणि", bhojraj: "भोजराज",
-    loknath: "लोकनाथ", gangadhar: "गङ्गाधर", chhisti: "छिस्ती", baglung: "बागलुङ", premsagar: "प्रेमसागर", sagar: "सागर", ram: "राम", shyam: "श्याम", hari: "हरि", krishna: "कृष्ण",
+    loknath: "लोकनाथ", gangadhar: "गंगाधर", chhisti: "छिस्ती", baglung: "बागलुङ", premsagar: "प्रेमसागर", sagar: "सागर", ram: "राम", shyam: "श्याम", hari: "हरि", krishna: "कृष्ण",
     laxmi: "लक्ष्मी", lakshmi: "लक्ष्मी", sita: "सीता", gita: "गीता", geeta: "गीता",
     radha: "राधा", ganga: "गङ्गा", durga: "दुर्गा", parvati: "पार्वती", kamala: "कमला",
     devi: "देवी", maya: "माया", kumari: "कुमारी", kumar: "कुमार", prasad: "प्रसाद",
