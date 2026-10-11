@@ -68,6 +68,27 @@
     return n;
   }
 
+  // जन्मक्रमको नाम: पहिलो जेठो, अन्तिम कान्छो, बीचका माइलो, साइँलो ...
+  const ORDER_MALE = ["माइलो", "साइँलो", "काइँलो", "ठाइँलो"];
+  const ORDER_FEMALE = ["माइली", "साइँली", "काइँली", "ठाइँली"];
+  function birthOrder(i, n, female) {
+    if (n < 2) return "";
+    if (i === 0) return female ? "जेठी" : "जेठो";
+    if (i === n - 1) return female ? "कान्छी" : "कान्छो";
+    return (female ? ORDER_FEMALE : ORDER_MALE)[i - 1] || (female ? "अन्तरी" : "अन्तरे");
+  }
+
+  // Sons and daughters are counted separately, across all wives, in the order listed.
+  function childOrders(person) {
+    const kids = [].concat(...(person.spouses || []).map(s => s.children || []));
+    const sons = kids.filter(k => k.gender !== "female");
+    const daughters = kids.filter(k => k.gender === "female");
+    const map = new Map();
+    sons.forEach((k, i) => map.set(k, birthOrder(i, sons.length, false)));
+    daughters.forEach((k, i) => map.set(k, birthOrder(i, daughters.length, true)));
+    return map;
+  }
+
   function tabLabel(b, i) {
     return b.name ? b.name.replace(/\s*पौड्याल$/, "") : "दाजुभाइ " + np(i + 1);
   }
@@ -246,9 +267,15 @@
     return confirm(what + " हटाउने हो?" + extra);
   }
 
-  function personCard(person, parentList, isRoot) {
+  function personCard(person, parentList, isRoot, order) {
     const card = document.createElement("div");
     card.className = "person " + (person.gender === "female" ? "female" : "male");
+    if (order) {
+      const o = document.createElement("div");
+      o.className = "order";
+      o.textContent = order;
+      card.appendChild(o);
+    }
     const placeholder = isRoot ? "दाजुभाइको नाम" : (person.gender === "female" ? "छोरीको नाम" : "छोराको नाम");
     card.appendChild(field(person, "name", placeholder, "name"));
     if (editing || person.note) card.appendChild(field(person, "note", "विवरण", "note"));
@@ -261,6 +288,16 @@
         (person.spouses = person.spouses || []).push({ name: "", children: [] });
         save(); render();
       }));
+      if (!isRoot && parentList.length > 1) {
+        const at = parentList.indexOf(person);
+        const move = d => () => {
+          parentList.splice(at, 1);
+          parentList.splice(at + d, 0, person);
+          save(); render();
+        };
+        if (at > 0) bar.appendChild(button("◀", "जेठो/जेठी तिर सार्नुहोस्", move(-1)));
+        if (at < parentList.length - 1) bar.appendChild(button("▶", "कान्छो/कान्छी तिर सार्नुहोस्", move(1)));
+      }
       if (!isRoot) {
         bar.appendChild(button("✕", "हटाउनुहोस्", () => {
           if (!confirmRemove(person.name || "यो व्यक्ति", person)) return;
@@ -300,10 +337,11 @@
   }
 
   // A person, then one branch per spouse with that spouse's children beneath.
-  function renderNode(person, parentList, isRoot) {
+  function renderNode(person, parentList, isRoot, order) {
     const li = document.createElement("li");
-    li.appendChild(personCard(person, parentList, isRoot));
+    li.appendChild(personCard(person, parentList, isRoot, order));
     const spouses = person.spouses || [];
+    const orders = childOrders(person);
     if (spouses.length) {
       const ul = document.createElement("ul");
       spouses.forEach(spouse => {
@@ -312,7 +350,7 @@
         const kids = spouse.children || [];
         if (kids.length) {
           const kul = document.createElement("ul");
-          kids.forEach(k => kul.appendChild(renderNode(k, kids, false)));
+          kids.forEach(k => kul.appendChild(renderNode(k, kids, false, orders.get(k))));
           sli.appendChild(kul);
         }
         ul.appendChild(sli);
@@ -328,7 +366,11 @@
       const btn = document.createElement("button");
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", String(b.id === current));
-      btn.textContent = tabLabel(b, i);
+      const ord = document.createElement("small");
+      ord.textContent = birthOrder(i, data.length, false);
+      const nm = document.createElement("span");
+      nm.textContent = tabLabel(b, i);
+      btn.append(ord, nm);
       btn.addEventListener("click", () => { current = b.id; render(); });
       tabsEl.appendChild(btn);
     });
@@ -353,7 +395,7 @@
     const wrap = document.createElement("div");
     wrap.className = "tree";
     const ul = document.createElement("ul");
-    ul.appendChild(renderNode(b, data, true));
+    ul.appendChild(renderNode(b, data, true, birthOrder(idx, data.length, false)));
     wrap.appendChild(ul);
     panelEl.appendChild(wrap);
 
