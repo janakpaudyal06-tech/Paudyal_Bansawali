@@ -1,6 +1,7 @@
-# Paudyal Bansawali (पौड्याल बंशावली)
+# पौड्याल बंशावली
 
-Family tree of the Paudyal family — one tab for each of the seven brothers.
+सात दाजुभाइका सन्तानहरूको बंशावली — हरेक दाजुभाइको एउटा ट्याब।
 
-Open `index.html` in a browser. To add or change family members, edit `data.js`
-(the format is described at the top of that file).
+- `index.html` ब्राउजरमा खोल्नुहोस्।
+- "भर्ने / सम्पादन मोड" मा खाली बाकसमा थिचेर नाम लेख्नुहोस्; "+ श्रीमती", "+ छोरा", "+ छोरी" ले नयाँ हाँगा थपिन्छ।
+- भरिएका कुरा सोही ब्राउजरमा सुरक्षित हुन्छन्। स्थायी रूपमा राख्न "डेटा डाउनलोड" थिचेर आएको `data.js` यो रिपोजिटरीको `data.js` सँग बदल्नुहोस्।
