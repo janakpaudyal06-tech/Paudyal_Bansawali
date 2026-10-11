@@ -187,3 +187,21 @@ body:not(.editing) .hint { display: none; }
 .tree.vertical .act.fold { margin-top: 0; }
 .tree.vertical .name, .tree.vertical .note { min-width: 0; }
 .spouse .note { color: var(--spouse-text); opacity: .85; }
+
+/* Drag to reorder siblings */
+.drag {
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  color: var(--muted); font-size: 1.05rem; line-height: 1; padding: 2px 4px; border-radius: 4px;
+  align-self: center;
+}
+.drag:hover { background: rgba(0,0,0,.06); color: var(--accent); }
+.tree:not(.vertical) .drag { display: block; margin: -2px auto 2px; }
+.drag-ghost {
+  position: fixed; z-index: 1000; pointer-events: none; opacity: .9;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18); transform: rotate(-1.5deg);
+}
+li.drag-source > .person { opacity: .35; }
+.tree.vertical li.drop-before > .person { box-shadow: 0 -4px 0 0 var(--accent); }
+.tree.vertical li.drop-after > .person { box-shadow: 0 4px 0 0 var(--accent); }
+.tree:not(.vertical) li.drop-before > .person { box-shadow: -5px 0 0 0 var(--accent); }
+.tree:not(.vertical) li.drop-after > .person { box-shadow: 5px 0 0 0 var(--accent); }

@@ -293,6 +293,7 @@
   function personCard(person, parentList, isRoot, order) {
     const card = document.createElement("div");
     card.className = "person " + (person.gender === "female" ? "female" : "male");
+    if (editing && !isRoot && parentList.length > 1) card.appendChild(dragHandle(person, parentList));
     if (order) {
       const o = document.createElement("div");
       o.className = "order";
@@ -340,6 +341,79 @@
       card.appendChild(bar);
     }
     return card;
+  }
+
+  // Grab ⠿ and drop a son/daughter among their siblings to set who is elder or younger.
+  // Pointer events, so it works with a mouse and with a finger.
+  function dragHandle(person, parentList) {
+    const h = document.createElement("span");
+    h.className = "drag";
+    h.textContent = "⠿";
+    h.title = "तानेर जेठो/कान्छो क्रम मिलाउनुहोस्";
+    h.setAttribute("role", "button");
+    h.setAttribute("aria-label", "क्रम मिलाउन तान्नुहोस्");
+    h.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const li = h.closest("li");
+      const lis = [...li.parentElement.children];
+      const from = lis.indexOf(li);
+      const cardOf = l => l.querySelector(":scope > .person");
+      let to = from;
+
+      const ghost = cardOf(li).cloneNode(true);
+      ghost.classList.add("drag-ghost");
+      document.body.appendChild(ghost);
+      li.classList.add("drag-source");
+      h.setPointerCapture(e.pointerId);
+
+      const clearMarks = () => lis.forEach(l => l.classList.remove("drop-before", "drop-after"));
+      const move = ev => {
+        ghost.style.left = ev.clientX + 14 + "px";
+        ghost.style.top = ev.clientY + 10 + "px";
+        const pos = vertical ? ev.clientY : ev.clientX;
+        let slot = lis.length; // insertion point among the original siblings
+        for (let i = 0; i < lis.length; i++) {
+          const r = cardOf(lis[i]).getBoundingClientRect();
+          if (pos < (vertical ? r.top + r.height / 2 : r.left + r.width / 2)) { slot = i; break; }
+        }
+        to = slot > from ? slot - 1 : slot;
+        clearMarks();
+        if (to !== from) {
+          if (slot < lis.length) lis[slot].classList.add("drop-before");
+          else lis[lis.length - 1].classList.add("drop-after");
+        }
+        // Scroll when dragging near the edge of the screen.
+        if (ev.clientY < 70) window.scrollBy(0, -18);
+        else if (ev.clientY > window.innerHeight - 70) window.scrollBy(0, 18);
+        const wrap = li.closest(".tree");
+        if (!vertical && wrap) {
+          const r = wrap.getBoundingClientRect();
+          if (ev.clientX < r.left + 50) wrap.scrollLeft -= 18;
+          else if (ev.clientX > r.right - 50) wrap.scrollLeft += 18;
+        }
+      };
+      const finish = commit => () => {
+        h.removeEventListener("pointermove", move);
+        h.removeEventListener("pointerup", onUp);
+        h.removeEventListener("pointercancel", onCancel);
+        ghost.remove();
+        li.classList.remove("drag-source");
+        clearMarks();
+        if (commit && to !== from) {
+          parentList.splice(from, 1);
+          parentList.splice(to, 0, person);
+          save();
+          render();
+        }
+      };
+      const onUp = finish(true), onCancel = finish(false);
+      h.addEventListener("pointermove", move);
+      h.addEventListener("pointerup", onUp);
+      h.addEventListener("pointercancel", onCancel);
+      move(e);
+    });
+    return h;
   }
 
   function spouseCard(person, spouse) {
