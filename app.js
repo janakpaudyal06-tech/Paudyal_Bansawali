@@ -83,14 +83,17 @@
     return (female ? ORDER_FEMALE : ORDER_MALE)[i - 1] || (female ? "सानी कान्छी" : "सानो कान्छो");
   }
 
-  // Sons and daughters are counted separately, across all wives, in the order listed.
+  // Each mother's children are counted on their own, sons and daughters separately,
+  // in the order listed (e.g. 4 sons → जेठो, माइलो, साइँलो, कान्छो).
   function childOrders(person) {
-    const kids = [].concat(...(person.spouses || []).map(s => s.children || []));
-    const sons = kids.filter(k => k.gender !== "female");
-    const daughters = kids.filter(k => k.gender === "female");
     const map = new Map();
-    sons.forEach((k, i) => map.set(k, birthOrder(i, sons.length, false)));
-    daughters.forEach((k, i) => map.set(k, birthOrder(i, daughters.length, true)));
+    (person.spouses || []).forEach(s => {
+      const kids = s.children || [];
+      const sons = kids.filter(k => k.gender !== "female");
+      const daughters = kids.filter(k => k.gender === "female");
+      sons.forEach((k, i) => map.set(k, birthOrder(i, sons.length, false)));
+      daughters.forEach((k, i) => map.set(k, birthOrder(i, daughters.length, true)));
+    });
     return map;
   }
 
