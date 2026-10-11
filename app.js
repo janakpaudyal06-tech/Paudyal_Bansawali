@@ -1,6 +1,7 @@
 (function () {
   const STORE_KEY = "paudyal-bansawali-v1";
   const EDIT_KEY = "paudyal-bansawali-edit";
+  const ORPHAN_KEY = "paudyal-bansawali-old-tabs";
   const OLD_DEFAULT_NAMES = new Set(["हिरन्दलाल पौड्याल"]); // placeholder names from earlier versions
   const NUM = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
   const np = n => String(n).replace(/\d/g, d => NUM[d]);
@@ -36,8 +37,12 @@
       if (!b.name || OLD_DEFAULT_NAMES.has(b.name)) b.name = def.name;
       return b;
     });
-    // Keep anything filled in under a tab that no longer exists, rather than losing it.
-    byId.forEach(b => { if ((b.spouses || []).length) merged.push(b); });
+    // Tabs are exactly the brothers in data.js. Anything filled in under an old
+    // placeholder tab is set aside (not shown) so it isn't lost.
+    const orphans = [...byId.values()].filter(b => (b.spouses || []).length);
+    if (orphans.length) {
+      try { localStorage.setItem(ORPHAN_KEY, JSON.stringify(orphans)); } catch (e) {}
+    }
     return merged;
   }
 
