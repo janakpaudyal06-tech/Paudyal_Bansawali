@@ -4,6 +4,9 @@
   const ORPHAN_KEY = "paudyal-bansawali-old-tabs";
   const ZOOM_KEY = "paudyal-bansawali-zoom";
   const LAYOUT_KEY = "paudyal-bansawali-layout";
+  // Which website version this browser's copy started from, and whether it has unsent edits.
+  const META_KEY = "paudyal-bansawali-meta";
+  const PUBLISHED = typeof DATA_VERSION === "string" ? DATA_VERSION : "";
   const OLD_DEFAULT_NAMES = new Set(["हिरन्दलाल पौड्याल"]); // placeholder names from earlier versions
   const NUM = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
   const np = n => String(n).replace(/\d/g, d => NUM[d]);
@@ -13,6 +16,8 @@
   const editToggle = document.getElementById("edit-toggle");
   const statusEl = document.getElementById("status");
 
+  let meta = readMeta();
+  let newerPublished = false; // the website has data newer than this browser's own edits
   let data = load();
   let current = (location.hash.slice(1)) || data[0].id;
   let editing = readEditPref();
@@ -25,13 +30,35 @@
 
   // Saved data is matched to the brothers in data.js by id, so the tab list and
   // order always follow data.js while what people filled in is kept.
+  //
+  // Whoever opens the link sees the website's data (data.js), unless they have made
+  // their own edits in this browser. If the website then gets newer data, people
+  // without edits switch to it automatically; people with edits are asked.
   function load() {
-    let saved = [];
+    let saved = null;
     try {
       const parsed = JSON.parse(localStorage.getItem(STORE_KEY));
       if (Array.isArray(parsed)) saved = parsed;
     } catch (e) { /* storage unavailable or corrupt: fall back to defaults */ }
+    if (!saved) { writeMeta({ basedOn: PUBLISHED, dirty: false }); return clone(BROTHERS); }
+    if (meta.basedOn !== PUBLISHED) {
+      if (!meta.dirty) { writeMeta({ basedOn: PUBLISHED, dirty: false }); return clone(BROTHERS); }
+      newerPublished = true;
+    }
     return mergeWithDefaults(saved);
+  }
+
+  function readMeta() {
+    try {
+      const m = JSON.parse(localStorage.getItem(META_KEY));
+      if (m && typeof m === "object") return m;
+    } catch (e) {}
+    // Copies saved before this existed may hold someone's typing: treat them as edited.
+    return { basedOn: "", dirty: true };
+  }
+  function writeMeta(m) {
+    meta = m;
+    try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {}
   }
 
   function mergeWithDefaults(saved) {
@@ -68,6 +95,7 @@
   function save() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      if (!meta.dirty) writeMeta({ ...meta, dirty: true });
       flash("सुरक्षित भयो ✓");
     } catch (e) {
       flash("यो ब्राउजरमा सुरक्षित गर्न सकिएन — डेटा डाउनलोड गर्नुहोस्");
@@ -497,6 +525,7 @@
       lastView.left = oldWrap.scrollLeft; lastView.top = oldWrap.scrollTop;
     }
     panelEl.innerHTML = "";
+    if (newerPublished) panelEl.appendChild(newerBanner());
     const meta = document.createElement("p");
     meta.className = "meta";
     const total = countDescendants(b);
@@ -522,6 +551,29 @@
     }
 
     if (location.hash !== "#" + b.id) history.replaceState(null, "", "#" + b.id);
+  }
+
+  function newerBanner() {
+    const box = document.createElement("div");
+    box.className = "banner";
+    const msg = document.createElement("p");
+    msg.textContent = "वेबसाइटमा नयाँ बंशावली राखिएको छ। तपाईंले यो ब्राउजरमा भरेको पुरानो प्रति देखिरहनुभएको छ।";
+    box.append(msg,
+      button("वेबसाइटको नयाँ हेर्नुहोस्", "वेबसाइटमा राखिएको बंशावली देखाउनुहोस्", () => {
+        if (!confirm("यो ब्राउजरमा भरेका तर वेबसाइटमा नराखिएका कुरा हट्नेछन्।\nचाहिएमा पहिले \"डेटा डाउनलोड\" गर्नुहोस्।\n\nवेबसाइटको बंशावली देखाउने हो?")) return;
+        try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+        writeMeta({ basedOn: PUBLISHED, dirty: false });
+        newerPublished = false;
+        data = clone(BROTHERS);
+        render();
+      }, "primary"),
+      button("मेरो नै राख्नुहोस्", "यो ब्राउजरमा भरेको प्रति नै राख्नुहोस्", () => {
+        writeMeta({ basedOn: PUBLISHED, dirty: true });
+        newerPublished = false;
+        render();
+      })
+    );
+    return box;
   }
 
   function setZoom(z, wrap, ul) {
@@ -609,8 +661,13 @@
   });
 
   document.getElementById("download").addEventListener("click", () => {
-    const text = "// पौड्याल बंशावली — " + new Date().toISOString().slice(0, 10) + " मा डाउनलोड गरिएको\n" +
+    const version = new Date().toISOString();
+    const text = "// पौड्याल बंशावली — " + version.slice(0, 10) + " मा डाउनलोड गरिएको\n" +
+      "// वेबसाइटमा राख्न: यो फाइल GitHub मा data.js को सट्टा अपलोड गर्नुहोस्।\n" +
+      "const DATA_VERSION = " + JSON.stringify(version) + ";\n" +
       "const BROTHERS = " + JSON.stringify(data, null, 2) + ";\n";
+    // Once this file is on the website, this browser's copy matches it.
+    writeMeta({ basedOn: version, dirty: false });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     a.download = "data.js";
@@ -632,6 +689,8 @@
   document.getElementById("reset").addEventListener("click", () => {
     if (!confirm("यो ब्राउजरमा भरिएका सबै विवरण मेटाएर सुरुको डेटामा फर्कने हो?")) return;
     try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+    writeMeta({ basedOn: PUBLISHED, dirty: false });
+    newerPublished = false;
     data = clone(BROTHERS); render();
   });
 
