@@ -21,6 +21,7 @@ body {
 header { text-align: center; padding: 28px 16px 8px; }
 header h1 { margin: 0; color: var(--accent); font-size: 1.9rem; }
 header p { margin: 4px 0 0; color: var(--muted); }
+header .origin { display: inline-block; font-size: .6em; font-weight: 600; }
 
 nav[role="tablist"] {
   display: flex; gap: 6px; overflow-x: auto;
