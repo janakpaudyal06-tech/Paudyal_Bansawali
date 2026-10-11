@@ -9,7 +9,9 @@
   --male-border: #8aa8cc;
   --female: #fbeaf0;
   --female-border: #d295ab;
-  --spouse: #f3ece2;
+  --spouse: #f7e9d2;
+  --spouse-border: #c9a368;
+  --spouse-text: #6b4423;
 }
 * { box-sizing: border-box; }
 body {
@@ -101,16 +103,17 @@ body:not(.editing) .hint { display: none; }
 .act:hover { border-color: var(--accent); color: var(--accent); }
 .act.danger:hover { border-color: #b3261e; color: #b3261e; }
 .spouse {
-  background: var(--spouse); border: 1px dashed var(--line);
-  font-size: .9rem; font-style: italic; color: var(--muted);
+  background: var(--spouse); border: 1px dashed var(--spouse-border);
+  font-family: "Noto Serif Devanagari", serif; font-size: .92rem; color: var(--spouse-text);
 }
+.spouse .name { font-weight: 600; }
 
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
 .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px;
   border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid; }
 .legend .m::before { background: var(--male); border-color: var(--male-border); }
 .legend .f::before { background: var(--female); border-color: var(--female-border); }
-.legend .s::before { background: var(--spouse); border: 1px dashed var(--line); }
+.legend .s::before { background: var(--spouse); border: 1px dashed var(--spouse-border); }
 
 /* Roman → नेपाली editor */
 .editor { display: flex; flex-direction: column; gap: 4px; align-items: stretch; min-width: 170px; }
@@ -129,3 +132,4 @@ body:not(.editing) .hint { display: none; }
 .editor.note .preview { font-weight: 400; font-size: .85rem; }
 
 .person .order { font-size: .72rem; color: var(--accent); font-weight: 600; letter-spacing: .02em; }
+.spouse .actions, .spouse .editor { font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", sans-serif; }
