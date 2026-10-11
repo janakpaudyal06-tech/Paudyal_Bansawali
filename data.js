@@ -7,6 +7,7 @@
 //   {
 //     name: "नाम",
 //     gender: "male" | "female",
+//     nameRoman: "Roman मा लेखिएको नाम (आफैं भरिन्छ)",
 //     note: "छोटो विवरण (ऐच्छिक)",
 //     spouses: [ { name: "श्रीमतीको नाम", children: [ ...व्यक्ति ] } ]
 //   }

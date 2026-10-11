@@ -54,26 +54,162 @@
     return b.name ? b.name.replace(/\s*पौड्याल$/, "") : "दाजुभाइ " + np(i + 1);
   }
 
-  // An inline editable text field. Writes back to obj[key] on every input.
-  function field(obj, key, placeholder, cls, onChange) {
+  // A name/note shown as text; in edit mode a click opens the Roman → नेपाली editor.
+  function field(obj, key, placeholder, cls) {
     const el = document.createElement("span");
     el.className = cls;
     el.dataset.placeholder = placeholder;
     el.textContent = obj[key] || "";
     if (editing) {
-      el.contentEditable = "plaintext-only";
-      if (el.contentEditable !== "plaintext-only") el.contentEditable = "true";
-      el.spellcheck = false;
-      el.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
-      el.addEventListener("input", () => {
-        obj[key] = el.textContent.trim();
-        if (onChange) onChange();
-      });
-      el.addEventListener("blur", () => { el.textContent = obj[key] || ""; save(); });
+      el.tabIndex = 0;
+      el.setAttribute("role", "button");
+      const open = () => {
+        const ed = editor(obj, key, placeholder, cls);
+        el.replaceWith(ed);
+        const input = ed.querySelector("input");
+        input.focus();
+        input.select();
+      };
+      el.addEventListener("click", open);
+      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     } else if (!obj[key]) {
       el.classList.add("blank");
     }
     return el;
+  }
+
+  // Optional extra suggestions from Google's transliteration service. If it
+  // can't be reached, the built-in converter (translit.js) is used alone.
+  const googleCache = new Map();
+  function googleVariants(word) {
+    const w = word.toLowerCase();
+    if (!googleCache.has(w)) {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 3000);
+      const url = "https://inputtools.google.com/request?itc=ne-t-i0-und&num=5&cp=0&cs=1&ie=utf-8&oe=utf-8&text=" +
+        encodeURIComponent(w);
+      googleCache.set(w, fetch(url, { signal: ctrl.signal })
+        .then(r => r.json())
+        .then(j => (j[0] === "SUCCESS" && j[1][0] && j[1][0][1]) || [])
+        .catch(() => []));
+    }
+    return googleCache.get(w);
+  }
+
+  function editor(obj, key, placeholder, cls) {
+    const romanKey = key + "Roman";
+    const box = document.createElement("div");
+    box.className = "editor " + cls;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.placeholder = "Roman मा लेख्नुहोस्";
+    input.setAttribute("aria-label", placeholder + " (Roman मा)");
+    input.value = obj[romanKey] || (obj[key] && !/[A-Za-z]/.test(obj[key]) ? obj[key] : "") || "";
+
+    const preview = document.createElement("div");
+    preview.className = "preview";
+    preview.setAttribute("aria-live", "polite");
+
+    const hint = document.createElement("div");
+    hint.className = "editor-hint";
+
+    const ok = button("✓", "ठीक छ (Enter)", () => commit());
+    const cancel = button("✕", "रद्द (Esc)", () => close());
+    const row = document.createElement("div");
+    row.className = "editor-row";
+    row.append(input, ok, cancel);
+    box.append(row, preview, hint);
+
+    // per word: chosen variant index, and whether the person picked it themselves
+    const picks = new Map();
+    let segs = [];
+
+    function wordVariants(w) {
+      const local = Translit.variants(w);
+      const g = picks.get(w.toLowerCase());
+      return g && g.google ? [...new Set([...g.google, ...local])] : local;
+    }
+
+    function result() {
+      return segs.map(s => {
+        if (!s.word) return s.text;
+        const v = wordVariants(s.word);
+        const p = picks.get(s.word.toLowerCase());
+        return v[(p && p.i) || 0] || v[0];
+      }).join("").replace(/\s+/g, " ").trim();
+    }
+
+    function draw() {
+      segs = Translit.segments(input.value);
+      preview.innerHTML = "";
+      let ambiguous = false;
+      segs.forEach(s => {
+        if (!s.word) { preview.appendChild(document.createTextNode(s.text)); return; }
+        const lw = s.word.toLowerCase();
+        const v = wordVariants(s.word);
+        const p = picks.get(lw) || {};
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "variant";
+        b.textContent = v[p.i || 0] || v[0];
+        if (v.length > 1) {
+          ambiguous = true;
+          b.title = "अर्को रूप: " + v.filter((_, i) => i !== (p.i || 0)).slice(0, 4).join(", ");
+          b.addEventListener("mousedown", e => e.preventDefault()); // keep focus in the input
+          b.addEventListener("click", () => {
+            const cur = picks.get(lw) || {};
+            picks.set(lw, { ...cur, i: ((cur.i || 0) + 1) % v.length, mine: true });
+            draw();
+          });
+        } else {
+          b.disabled = true;
+        }
+        preview.appendChild(b);
+        if (!p.google && !p.asked) {
+          picks.set(lw, { ...p, asked: true });
+          googleVariants(s.word).then(list => {
+            if (!list.length) return;
+            const cur = picks.get(lw) || {};
+            picks.set(lw, { ...cur, google: list, i: cur.mine ? cur.i : 0 });
+            if (box.isConnected) draw();
+          });
+        }
+      });
+      hint.textContent = !input.value.trim() ? "जस्तै: ram prasad → राम प्रसाद"
+        : ambiguous ? "मिलेन? शब्दमा थिचेर अर्को रूप छान्नुहोस्" : "";
+    }
+
+    let done = false;
+    function close() {
+      if (done) return;
+      done = true;
+      // Swap just this box back (a full re-render would close a box opened by the same click).
+      box.replaceWith(field(obj, key, placeholder, cls));
+      renderTabs();
+    }
+    function commit() {
+      if (done) return;
+      const roman = input.value.trim();
+      obj[key] = result();
+      if (/[A-Za-z]/.test(roman)) obj[romanKey] = roman; else delete obj[romanKey];
+      save();
+      close();
+    }
+
+    input.addEventListener("input", draw);
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { e.preventDefault(); close(); }
+    });
+    box.addEventListener("focusout", e => {
+      if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement)) commit(); }, 0);
+    });
+
+    draw();
+    return box;
   }
 
   function button(label, title, onClick, cls) {
@@ -92,11 +228,11 @@
     return confirm(what + " हटाउने हो?" + extra);
   }
 
-  function personCard(person, parentList, isRoot, onRootName) {
+  function personCard(person, parentList, isRoot) {
     const card = document.createElement("div");
     card.className = "person " + (person.gender === "female" ? "female" : "male");
     const placeholder = isRoot ? "दाजुभाइको नाम" : (person.gender === "female" ? "छोरीको नाम" : "छोराको नाम");
-    card.appendChild(field(person, "name", placeholder, "name", isRoot ? onRootName : null));
+    card.appendChild(field(person, "name", placeholder, "name"));
     if (editing || person.note) card.appendChild(field(person, "note", "विवरण", "note"));
 
     if (editing) {
@@ -146,9 +282,9 @@
   }
 
   // A person, then one branch per spouse with that spouse's children beneath.
-  function renderNode(person, parentList, isRoot, onRootName) {
+  function renderNode(person, parentList, isRoot) {
     const li = document.createElement("li");
-    li.appendChild(personCard(person, parentList, isRoot, onRootName));
+    li.appendChild(personCard(person, parentList, isRoot));
     const spouses = person.spouses || [];
     if (spouses.length) {
       const ul = document.createElement("ul");
@@ -199,8 +335,7 @@
     const wrap = document.createElement("div");
     wrap.className = "tree";
     const ul = document.createElement("ul");
-    const tabBtn = tabsEl.children[idx];
-    ul.appendChild(renderNode(b, data, true, () => { tabBtn.textContent = tabLabel(b, idx); }));
+    ul.appendChild(renderNode(b, data, true));
     wrap.appendChild(ul);
     panelEl.appendChild(wrap);
 
