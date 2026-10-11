@@ -2,6 +2,7 @@
   const STORE_KEY = "paudyal-bansawali-v1";
   const EDIT_KEY = "paudyal-bansawali-edit";
   const ORPHAN_KEY = "paudyal-bansawali-old-tabs";
+  const ZOOM_KEY = "paudyal-bansawali-zoom";
   const OLD_DEFAULT_NAMES = new Set(["हिरन्दलाल पौड्याल"]); // placeholder names from earlier versions
   const NUM = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
   const np = n => String(n).replace(/\d/g, d => NUM[d]);
@@ -14,6 +15,9 @@
   let data = load();
   let current = (location.hash.slice(1)) || data[0].id;
   let editing = readEditPref();
+  let zoom = readZoom();
+  const collapsed = new WeakSet(); // people whose branch is folded away (this visit only)
+  let lastView = null;             // keeps the tree's scroll position across re-renders
 
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
 
@@ -44,6 +48,10 @@
       try { localStorage.setItem(ORPHAN_KEY, JSON.stringify(orphans)); } catch (e) {}
     }
     return merged;
+  }
+
+  function readZoom() {
+    try { const z = parseFloat(localStorage.getItem(ZOOM_KEY)); return z >= 0.2 && z <= 2 ? z : 1; } catch (e) { return 1; }
   }
 
   function readEditPref() {
@@ -288,6 +296,15 @@
     const placeholder = isRoot ? "दाजुभाइको नाम" : (person.gender === "female" ? "छोरीको नाम" : "छोराको नाम");
     card.appendChild(field(person, "name", placeholder, "name"));
     if (editing || person.note) card.appendChild(field(person, "note", "विवरण", "note"));
+    const below = countDescendants(person);
+    if (below) {
+      const folded = collapsed.has(person);
+      const t = button(folded ? "▸ " + np(below) + " जना" : "▾", folded ? "हाँगा खोल्नुहोस्" : "हाँगा बन्द गर्नुहोस्", () => {
+        if (folded) collapsed.delete(person); else collapsed.add(person);
+        render();
+      }, "fold");
+      card.appendChild(t);
+    }
 
     if (editing) {
       const bar = document.createElement("div");
@@ -349,7 +366,7 @@
   function renderNode(person, parentList, isRoot, order) {
     const li = document.createElement("li");
     li.appendChild(personCard(person, parentList, isRoot, order));
-    const spouses = person.spouses || [];
+    const spouses = collapsed.has(person) ? [] : (person.spouses || []);
     const orders = childOrders(person);
     if (spouses.length) {
       const ul = document.createElement("ul");
@@ -394,6 +411,10 @@
     editToggle.setAttribute("aria-pressed", String(editing));
     editToggle.textContent = editing ? "हेर्ने मोड" : "भर्ने / सम्पादन मोड";
 
+    const oldWrap = panelEl.querySelector(".tree");
+    if (oldWrap && lastView && lastView.id === b.id) {
+      lastView.left = oldWrap.scrollLeft; lastView.top = oldWrap.scrollTop;
+    }
     panelEl.innerHTML = "";
     const meta = document.createElement("p");
     meta.className = "meta";
@@ -404,11 +425,94 @@
     const wrap = document.createElement("div");
     wrap.className = "tree";
     const ul = document.createElement("ul");
+    ul.style.zoom = zoom;
     ul.appendChild(renderNode(b, data, true, birthOrder(idx, data.length, false)));
     wrap.appendChild(ul);
+    panelEl.appendChild(treeTools(wrap, ul));
     panelEl.appendChild(wrap);
+    enableDragPan(wrap);
+
+    if (lastView && lastView.id === b.id) {
+      wrap.scrollLeft = lastView.left; wrap.scrollTop = lastView.top;
+    } else {
+      // New tab: start with the top of the tree in the middle of the view.
+      wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;
+      lastView = { id: b.id, left: wrap.scrollLeft, top: 0 };
+    }
 
     if (location.hash !== "#" + b.id) history.replaceState(null, "", "#" + b.id);
+  }
+
+  function setZoom(z, wrap, ul) {
+    // Keep the point in the middle of the view in the middle after zooming.
+    const cx = (wrap.scrollLeft + wrap.clientWidth / 2) / zoom;
+    const cy = (wrap.scrollTop + wrap.clientHeight / 2) / zoom;
+    zoom = Math.min(2, Math.max(0.2, Math.round(z * 100) / 100));
+    ul.style.zoom = zoom;
+    wrap.scrollLeft = cx * zoom - wrap.clientWidth / 2;
+    wrap.scrollTop = cy * zoom - wrap.clientHeight / 2;
+    try { localStorage.setItem(ZOOM_KEY, String(zoom)); } catch (e) {}
+    const label = panelEl.querySelector(".zoom-level");
+    if (label) label.textContent = np(Math.round(zoom * 100)) + "%";
+  }
+
+  function treeTools(wrap, ul) {
+    const bar = document.createElement("div");
+    bar.className = "tree-tools";
+    const level = document.createElement("span");
+    level.className = "zoom-level";
+    level.textContent = np(Math.round(zoom * 100)) + "%";
+    bar.append(
+      button("−", "सानो बनाउनुहोस्", () => setZoom(zoom - 0.1, wrap, ul)),
+      level,
+      button("+", "ठूलो बनाउनुहोस्", () => setZoom(zoom + 0.1, wrap, ul)),
+      button("पूरै देखाउनुहोस्", "पूरै बंशावली एकै पटक स्क्रिनमा", () => {
+        // From full size, shrink until nothing sticks out sideways (re-measure: rounding can leave a sliver).
+        setZoom(1, wrap, ul);
+        for (let i = 0; i < 4 && wrap.scrollWidth > wrap.clientWidth + 1; i++) {
+          setZoom(zoom * (wrap.clientWidth - 4) / wrap.scrollWidth - 0.005, wrap, ul);
+        }
+        wrap.scrollLeft = 0; wrap.scrollTop = 0;
+      }),
+      button("१००%", "सामान्य आकार", () => setZoom(1, wrap, ul))
+    );
+    if (anyCollapsed()) {
+      bar.appendChild(button("सबै हाँगा खोल्नुहोस्", "बन्द गरिएका सबै हाँगा खोल्नुहोस्", () => {
+        (function open(p) { collapsed.delete(p); (p.spouses || []).forEach(s => (s.children || []).forEach(open)); })(data.find(x => x.id === current));
+        render();
+      }));
+    }
+    const tip = document.createElement("span");
+    tip.className = "tree-tip";
+    tip.textContent = "माउसले तानेर वा स्क्रोल गरेर सार्नुहोस्";
+    bar.appendChild(tip);
+    return bar;
+  }
+
+  function anyCollapsed() {
+    let found = false;
+    (function walk(p) { if (collapsed.has(p)) found = true; (p.spouses || []).forEach(s => (s.children || []).forEach(walk)); })(data.find(x => x.id === current));
+    return found;
+  }
+
+  // Drag the empty part of the tree with the mouse to move around (touch already scrolls).
+  function enableDragPan(wrap) {
+    let start = null;
+    wrap.addEventListener("pointerdown", e => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      if (e.target.closest("button, input, [role=button], .editor")) return;
+      start = { x: e.clientX, y: e.clientY, left: wrap.scrollLeft, top: wrap.scrollTop };
+      wrap.setPointerCapture(e.pointerId);
+      wrap.classList.add("dragging");
+    });
+    wrap.addEventListener("pointermove", e => {
+      if (!start) return;
+      wrap.scrollLeft = start.left - (e.clientX - start.x);
+      wrap.scrollTop = start.top - (e.clientY - start.y);
+    });
+    const end = () => { start = null; wrap.classList.remove("dragging"); };
+    wrap.addEventListener("pointerup", end);
+    wrap.addEventListener("pointercancel", end);
   }
 
   editToggle.addEventListener("click", () => {

@@ -57,7 +57,14 @@ body:not(.editing) .hint { display: none; }
 #status { font-size: .85rem; color: #2e7d32; }
 
 /* Family tree: nested lists drawn with connector lines */
-.tree { overflow-x: auto; padding: 8px 0 32px; }
+.tree {
+  overflow: auto; max-height: calc(100vh - 90px); padding: 12px 0 32px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+  cursor: grab; overscroll-behavior: contain;
+}
+.tree.dragging { cursor: grabbing; user-select: none; }
+/* Grow to the tree's full width (so every branch can be scrolled to), centred when it fits. */
+.tree > ul { width: max-content; min-width: 100%; }
 .tree ul { position: relative; padding-top: 20px; margin: 0; padding-left: 0;
   display: flex; justify-content: center; }
 .tree > ul { padding-top: 0; }
@@ -133,3 +140,9 @@ body:not(.editing) .hint { display: none; }
 
 .person .order { font-size: .72rem; color: var(--accent); font-weight: 600; letter-spacing: .02em; }
 .spouse .actions, .spouse .editor { font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", sans-serif; }
+
+.tree-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.tree-tools .act { font-size: .85rem; padding: 4px 10px; }
+.zoom-level { min-width: 3.2em; text-align: center; font-size: .85rem; color: var(--muted); }
+.tree-tip { font-size: .75rem; color: var(--muted); }
+.act.fold { margin-top: 6px; font-size: .72rem; padding: 1px 8px; }
