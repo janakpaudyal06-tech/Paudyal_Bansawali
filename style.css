@@ -186,3 +186,4 @@ body:not(.editing) .hint { display: none; }
 .tree.vertical .actions { margin-top: 0; justify-content: flex-start; }
 .tree.vertical .act.fold { margin-top: 0; }
 .tree.vertical .name, .tree.vertical .note { min-width: 0; }
+.spouse .note { color: var(--spouse-text); opacity: .85; }

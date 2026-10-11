@@ -347,6 +347,7 @@
     box.className = "spouse";
     const word = person.gender === "female" ? "श्रीमानको नाम" : "श्रीमतीको नाम";
     box.appendChild(field(spouse, "name", word, "name"));
+    if (editing || spouse.note) box.appendChild(field(spouse, "note", "विवरण", "note"));
     if (editing) {
       const bar = document.createElement("div");
       bar.className = "actions";
