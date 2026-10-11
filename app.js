@@ -75,7 +75,7 @@
     if (n < 2) return "";
     if (i === 0) return female ? "जेठी" : "जेठो";
     if (i === n - 1) return female ? "कान्छी" : "कान्छो";
-    return (female ? ORDER_FEMALE : ORDER_MALE)[i - 1] || (female ? "अन्तरी" : "अन्तरे");
+    return (female ? ORDER_FEMALE : ORDER_MALE)[i - 1] || (female ? "सानी कान्छी" : "सानो कान्छो");
   }
 
   // Sons and daughters are counted separately, across all wives, in the order listed.
