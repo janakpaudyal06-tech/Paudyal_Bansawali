@@ -3,6 +3,7 @@
   const EDIT_KEY = "paudyal-bansawali-edit";
   const ORPHAN_KEY = "paudyal-bansawali-old-tabs";
   const ZOOM_KEY = "paudyal-bansawali-zoom";
+  const LAYOUT_KEY = "paudyal-bansawali-layout";
   const OLD_DEFAULT_NAMES = new Set(["हिरन्दलाल पौड्याल"]); // placeholder names from earlier versions
   const NUM = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"];
   const np = n => String(n).replace(/\d/g, d => NUM[d]);
@@ -16,6 +17,7 @@
   let current = (location.hash.slice(1)) || data[0].id;
   let editing = readEditPref();
   let zoom = readZoom();
+  let vertical = readLayout() !== "horizontal"; // ठाडो (top-to-bottom list) is the default
   const collapsed = new WeakSet(); // people whose branch is folded away (this visit only)
   let lastView = null;             // keeps the tree's scroll position across re-renders
 
@@ -48,6 +50,10 @@
       try { localStorage.setItem(ORPHAN_KEY, JSON.stringify(orphans)); } catch (e) {}
     }
     return merged;
+  }
+
+  function readLayout() {
+    try { return localStorage.getItem(LAYOUT_KEY); } catch (e) { return null; }
   }
 
   function readZoom() {
@@ -321,8 +327,8 @@
           parentList.splice(at + d, 0, person);
           save(); render();
         };
-        if (at > 0) bar.appendChild(button("◀", "जेठो/जेठी तिर सार्नुहोस्", move(-1)));
-        if (at < parentList.length - 1) bar.appendChild(button("▶", "कान्छो/कान्छी तिर सार्नुहोस्", move(1)));
+        if (at > 0) bar.appendChild(button(vertical ? "▲" : "◀", "जेठो/जेठी तिर सार्नुहोस्", move(-1)));
+        if (at < parentList.length - 1) bar.appendChild(button(vertical ? "▼" : "▶", "कान्छो/कान्छी तिर सार्नुहोस्", move(1)));
       }
       if (!isRoot) {
         bar.appendChild(button("✕", "हटाउनुहोस्", () => {
@@ -423,7 +429,7 @@
     panelEl.appendChild(meta);
 
     const wrap = document.createElement("div");
-    wrap.className = "tree";
+    wrap.className = "tree" + (vertical ? " vertical" : "");
     const ul = document.createElement("ul");
     ul.style.zoom = zoom;
     ul.appendChild(renderNode(b, data, true, birthOrder(idx, data.length, false)));
@@ -435,8 +441,8 @@
     if (lastView && lastView.id === b.id) {
       wrap.scrollLeft = lastView.left; wrap.scrollTop = lastView.top;
     } else {
-      // New tab: start with the top of the tree in the middle of the view.
-      wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2;
+      // New tab: the sideways tree starts with its top in the middle of the view.
+      wrap.scrollLeft = vertical ? 0 : (wrap.scrollWidth - wrap.clientWidth) / 2;
       lastView = { id: b.id, left: wrap.scrollLeft, top: 0 };
     }
 
@@ -476,6 +482,12 @@
       }),
       button("१००%", "सामान्य आकार", () => setZoom(1, wrap, ul))
     );
+    bar.appendChild(button(vertical ? "तेर्सो रूखमा हेर्नुहोस्" : "ठाडो सूचीमा हेर्नुहोस्", "देखाउने तरिका बदल्नुहोस्", () => {
+      vertical = !vertical;
+      try { localStorage.setItem(LAYOUT_KEY, vertical ? "vertical" : "horizontal"); } catch (e) {}
+      lastView = null;
+      render();
+    }, "layout"));
     if (anyCollapsed()) {
       bar.appendChild(button("सबै हाँगा खोल्नुहोस्", "बन्द गरिएका सबै हाँगा खोल्नुहोस्", () => {
         (function open(p) { collapsed.delete(p); (p.spouses || []).forEach(s => (s.children || []).forEach(open)); })(data.find(x => x.id === current));
@@ -485,7 +497,7 @@
     const tip = document.createElement("span");
     tip.className = "tree-tip";
     tip.textContent = "माउसले तानेर वा स्क्रोल गरेर सार्नुहोस्";
-    bar.appendChild(tip);
+    if (!vertical) bar.appendChild(tip);
     return bar;
   }
 
